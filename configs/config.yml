@@ -34,18 +34,18 @@ google_credentials: '
 
 google_drive_credentials: '
 {
-  "installed": {
-    "client_id": "708448127214-ebmqoe7eehc31t4ivlsa075n158c3hqd.apps.googleusercontent.com",
-    "project_id": "golang-upload-http",
-    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-    "token_uri": "https://oauth2.googleapis.com/token",
-    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-    "client_secret": "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",
-    "redirect_uris": [
-      "urn:ietf:wg:oauth:2.0:oob",
-      "http://localhost"
-    ]
-  }
+    "installed": {
+        "client_id": "708448127214-70aqnb9hp5l2u1rgmh7plljpp6isb5mg.apps.googleusercontent.com",
+        "project_id": "golang-upload-http",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_secret": "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",
+        "redirect_uris": [
+            "urn:ietf:wg:oauth:2.0:oob",
+            "http://localhost"
+        ]
+    }
 }'
 
 aws:

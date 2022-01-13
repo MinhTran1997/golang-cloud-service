@@ -61,9 +61,7 @@ func (o OneDriveService) Upload(ctx context.Context, directory string, filename 
 		return "", err
 	}
 
-	fmt.Println(item.Id)
-
-	msg := fmt.Sprintf("uploaded file '%s' to one-drive successfully!!!", filename)
+	msg := fmt.Sprintf("uploaded file '%s' to one-drive successfully!!!, follow this link to view file in one-drive: %s", filename, item.WebURL)
 	return msg, nil
 }
 

@@ -38,12 +38,13 @@ func NewGoogleDriveService(ctx context.Context, credentials []byte) (*GoogleDriv
 
 func (s GoogleDriveService) Upload(ctx context.Context, directory string, filename string, data []byte, contentType string) (string, error) {
 	file := bytes.NewReader(data)
+	var fileId string
+	var folderId string
 
-	// check duplicate folder
+	//check duplicate folder
 	queryFolder := fmt.Sprintf("name = '%s' and mimeType = 'application/vnd.google-apps.folder' and trashed = false", directory)
 	listFolder, _ := s.Service.Files.List().Q(queryFolder).Do()
-	var folderId string
-	if len(listFolder.Files) > 0 {
+	if listFolder != nil && len(listFolder.Files) > 0 {
 		folderId = listFolder.Files[0].Id
 	} else {
 		folder, err1 := createDirectory(s.Service, directory, "root")
@@ -56,8 +57,8 @@ func (s GoogleDriveService) Upload(ctx context.Context, directory string, filena
 	// check duplicate file
 	queryFile := fmt.Sprintf("name = '%s' and mimeType != 'application/vnd.google-apps.folder' and trashed = false", filename)
 	listFile, _ := s.Service.Files.List().Q(queryFile).Do()
-	if listFile != nil {
-		fileId := listFile.Files[0].Id
+	if listFile != nil && len(listFile.Files) > 0 {
+		fileId = listFile.Files[0].Id
 		err := s.Service.Files.Delete(fileId).Do()
 		if err != nil {
 			return "could not delete duplicate file", err
@@ -65,14 +66,31 @@ func (s GoogleDriveService) Upload(ctx context.Context, directory string, filena
 	}
 
 	// create the file and upload its content
-	_, err := createFile(s.Service, filename, contentType, file, folderId)
+	fileResp, err := createFile(s.Service, filename, contentType, file, folderId)
 	if err != nil {
 		msg := fmt.Sprintf("Could not create file: %v\n", err)
 		return msg, err
 	}
+	fileId = fileResp.Id
 
-	msg := fmt.Sprintf("file '%s' uploaded in google drive successfully!!!", filename)
+	// 		create share link for file
+	// create permission type
+	permissionToBeCreated := &drive.Permission{
+		Type: "anyone",
+		Role: "reader",
+	}
+	// create permission for file
+	_, err = s.Service.Permissions.Create(fileId, permissionToBeCreated).Do() // create permission for file
+	if err != nil {
+		panic(err)
+	}
+	//get webViewLink
+	fileRespShare, err := s.Service.Files.Get(fileId).Fields("webViewLink").Do() //get webViewLink
+	if err != nil {
+		panic(err)
+	}
 
+	msg := fmt.Sprintf("file '%s' uploaded in google drive successfully!!! follow this link to view file in google drive: %s", filename, fileRespShare.WebViewLink)
 	return msg, nil
 }
 

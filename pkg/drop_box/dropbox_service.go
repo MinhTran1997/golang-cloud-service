@@ -3,9 +3,12 @@ package drop_box
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/dropbox/dropbox-sdk-go-unofficial/v6/dropbox"
 	"github.com/dropbox/dropbox-sdk-go-unofficial/v6/dropbox/files"
+	"io/ioutil"
+	"net/http"
 )
 
 type DropboxService struct {
@@ -13,16 +16,32 @@ type DropboxService struct {
 	Client	files.Client
 }
 
-type bodyRequestDropbox struct {
-	Path		string			`json:"path"`
-	Settings	settingsStruct	`json:"settings"`
+type BodyRequestDropbox struct {
+	Path     string         `json:"path"`
+	Settings SettingsStruct `json:"settings"`
 }
 
-type settingsStruct struct{
+type SettingsStruct struct {
 	Audience			string	`json:"audience"`
 	Access				string	`json:"access"`
 	RequestedVisibility	string	`json:"requested_visibility"`
 	AllowDownload		bool	`json:"allow_download"`
+}
+
+type FileShareResponse struct {
+	Tag				string `json:".tag"`
+	Url				string `json:"url"`
+	Id				string `json:"id"`
+	Name			string `json:"name"`
+	PathLower		string `json:"path_lower"`
+	LinkPermissions	string `json:",omitempty"`
+	// linkPermissions has a very complicated and large structure data.
+	// Because its data is not important in this project, so it will be ignored.
+	PreviewType		string `json:"preview_type"`
+	ClientModified	string `json:"client_modified"`
+	ServerModified	string `json:"server_modified"`
+	Rev				string `json:"rev"`
+	Size			float64 `json:"size"`
 }
 
 func NewDropboxService(token string) (*DropboxService, error) {
@@ -51,13 +70,66 @@ func (d DropboxService) Upload(ctx context.Context, directory string, filename s
 	arg := files.NewCommitInfo(filepath)
 
 	//upload file
-	_, err2 := client.Upload(arg, file)
-	if err2 != nil {
-		panic(err2)
+	_, err := client.Upload(arg, file)
+	if err != nil {
+		panic(err)
 	}
 
-	msg := fmt.Sprintf("uploaded file '%s' to dropbox successfully!!!", filename)
-	return msg, err2
+	//consuming API
+	url := "https://api.dropboxapi.com/2/sharing/create_shared_link_with_settings"
+	var bearer = "Bearer " + d.Token
+	bodyData :=  BodyRequestDropbox{
+		Path: filepath,
+		Settings: SettingsStruct{
+			Audience: "public",
+			Access: "viewer",
+			RequestedVisibility: "public",
+			AllowDownload: true,
+		},
+	}
+	var buf bytes.Buffer
+	err = json.NewEncoder(&buf).Encode(bodyData)
+	if err != nil {
+		panic(err)
+	}
+
+	//bodyData := map[string]interface{}{
+	//	"path": filepath,
+	//	"settings":  map[string]interface{}{
+	//		"audience": "public",
+	//		"access": "viewer",
+	//		"requested_visibility": "public",
+	//		"allow_download": true,
+	//	},
+	//}
+	//byteArray, _ := json.Marshal(bodyData)
+	//reader := bytes.NewReader(byteArray)
+
+	req, err := http.NewRequest("POST", url, &buf)
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Add("Authorization", bearer)
+	req.Header.Add("Content-Type", "application/json")
+	// Send req using http Client
+	clientAPI := &http.Client{}
+	resp, err := clientAPI.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+	var bodyResp FileShareResponse
+	err = json.Unmarshal(body, &bodyResp)
+	if err != nil {
+		panic(err)
+	}
+
+	msg := fmt.Sprintf("uploaded file '%s' to dropbox successfully!!! follow this link to view file in dropbox: %s", filename, bodyResp.Url)
+	return msg, err
 }
 
 func (d DropboxService)  Delete(ctx context.Context, directory string, fileName string) (bool, error) {
